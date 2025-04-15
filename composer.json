@@ -1,12 +1,12 @@
 {
-  "name": "alaouy/youtube",
+  "name": "obayesshelton/YouTube",
   "description": "Laravel PHP Facade/Wrapper for the Youtube Data API v3",
   "keywords": ["youtube", "api", "video", "laravel", "alaouy"],
   "license": "MIT",
   "authors": [
     {
-      "name": "Mustapha Alaouy",
-      "email": "alaouym@gmail.com"
+      "name": "Oliver Bayes-Shelton",
+      "email": "me@bayes-shelton.co.uk"
     }
   ],
   "require": {
