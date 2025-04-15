@@ -1,5 +1,5 @@
 {
-  "name": "obayesshelton/YouTube",
+  "name": "obayesshelton/youtube",
   "description": "Laravel PHP Facade/Wrapper for the Youtube Data API v3",
   "keywords": ["youtube", "api", "video", "laravel", "alaouy"],
   "license": "MIT",
