@@ -132,12 +132,13 @@ class Youtube
      * @param string $order         Specifies the order in which the API response should list comment threads. Valid values are: time, relevance.
      * @param array $part           Specifies a list of one or more commentThread resource properties that the API response will include.
      * @param bool $pageInfo        Add page info to returned array.
+     * @param string $pageToken     The pageToken parameter identifies a specific page in the result set that should be returned.
      * @return array
      * @throws \Exception
      */
-    public function getCommentThreadsByVideoId($videoId = null, $maxResults = 20, $order = null, $part = ['id', 'replies', 'snippet'], $pageInfo = false) {
+    public function getCommentThreadsByVideoId($videoId = null, $maxResults = 20, $order = null, $part = ['id', 'replies', 'snippet'], $pageInfo = false, $pageToken = null) {
 
-        return $this->getCommentThreads(null, null, $videoId, $maxResults, $order, $part, $pageInfo);
+        return $this->getCommentThreads(null, null, $videoId, $maxResults, $order, $part, $pageInfo, $pageToken);
     }
 
     /**
@@ -148,10 +149,11 @@ class Youtube
      * @param string $order         Specifies the order in which the API response should list comment threads. Valid values are: time, relevance.
      * @param array $part           Specifies a list of one or more commentThread resource properties that the API response will include.
      * @param bool $pageInfo        Add page info to returned array.
+     * @param string $pageToken     The pageToken parameter identifies a specific page in the result set that should be returned.     
      * @return array
      * @throws \Exception
      */
-    public function getCommentThreads($channelId = null, $id = null, $videoId = null, $maxResults = 20, $order = null, $part = ['id', 'replies', 'snippet'], $pageInfo = false)
+    public function getCommentThreads($channelId = null, $id = null, $videoId = null, $maxResults = 20, $order = null, $part = ['id', 'replies', 'snippet'], $pageInfo = false, $pageToken = null)
     {
         $API_URL = $this->getApi('commentThreads.list');
 
@@ -162,6 +164,7 @@ class Youtube
             'maxResults' => $maxResults,
             'part' => implode(',', $part),
             'order' => $order,
+	    'pageToken' => $pageToken,
         ]);
 
         $apiData = $this->api_get($API_URL, $params);
@@ -238,14 +241,13 @@ class Youtube
      * @param array $part
      * @return array
      */
-    public function getPopularVideos($regionCode, $maxResults = 10, $part = ['id', 'snippet', 'contentDetails', 'player', 'statistics', 'status'], $videoCategoryId = 0)
+    public function getPopularVideos($regionCode, $maxResults = 10, $part = ['id', 'snippet', 'contentDetails', 'player', 'statistics', 'status'])
     {
         $API_URL = $this->getApi('videos.list');
         $params = [
             'chart' => 'mostPopular',
             'part' => implode(',', $part),
             'regionCode' => $regionCode,
-            'videoCategoryId' => $videoCategoryId,
             'maxResults' => $maxResults,
         ];
 
@@ -419,28 +421,6 @@ class Youtube
         return $this->decodeSingle($apiData);
     }
 
-    /**
-     * @param $handleName
-     * @param array $optionalParams
-     * @param array $part
-     * @return \StdClass
-     * @throws \Exception
-     */	
-    public function getChannelByHandle($handleName, $optionalParams = [], $part = ['id', 'snippet', 'contentDetails', 'statistics'])
-    {
-        $API_URL = $this->getApi('channels.list');
-        $params = [
-            'forHandle' => $handleName,
-            'part' => implode(',', $part),
-        ];
-
-        $params = array_merge($params, $optionalParams);
-
-        $apiData = $this->api_get($API_URL, $params);
-
-        return $this->decodeSingle($apiData);
-    }	
-
 	/**
 	 * @param $username
 	 * @param $maxResults
@@ -603,66 +583,55 @@ class Youtube
     }
 
     /**
-     * Parse a YouTube URL to get the YouTube Video ID.
-     * Supports full URL (www.youtube.com), short URL (youtu.be),
-     * embed URL, and live stream URL.
+     * @param  string $videoId
+     * @param  integer $maxResults
+     * @param  array $part
+     * @return array
+     * @throws \Exception
+     */
+    public function getRelatedVideos($videoId, $maxResults = 5, $part = ['id', 'snippet'])
+    {
+        if (empty($videoId)) {
+            throw new \InvalidArgumentException('A video id must be supplied');
+        }
+        $API_URL = $this->getApi('search.list');
+        $params = [
+            'type' => 'video',
+            'relatedToVideoId' => $videoId,
+            'part' => implode(',', $part),
+            'maxResults' => $maxResults,
+        ];
+        $apiData = $this->api_get($API_URL, $params);
+
+        return $this->decodeList($apiData);
+    }
+
+    /**
+     * Parse a youtube URL to get the youtube Vid.
+     * Support both full URL (www.youtube.com) and short URL (youtu.be)
      *
      * @param  string $youtube_url
      * @throws \Exception
-     * @return string Video ID
+     * @return string Video Id
      */
     public static function parseVidFromURL($youtube_url)
     {
-        // Parse the URL into its components
-        $parsedUrl = parse_url($youtube_url);
-
-        // Check if it's a valid YouTube URL
-        if (isset($parsedUrl['host'], $parsedUrl['path'])) {
-
-            // Handle full YouTube URL (www.youtube.com)
-            if (strpos($parsedUrl['host'], 'youtube.com') !== false) {
-
-                // Handle embed URLs (e.g., https://www.youtube.com/embed/{video_id})
-                if (strpos($parsedUrl['path'], '/embed/') === 0) {
-                    $path = static::_parse_url_path($youtube_url);
-                    $vid = substr($path, strlen('/embed/'));
-
-                    return $vid;
-                }
-
-                // Handle live URLs (e.g., https://www.youtube.com/live/{video_id})
-                if (strpos($parsedUrl['path'], '/live/') === 0) {
-                    $path = static::_parse_url_path($youtube_url);
-                    $vid = substr($path, strlen('/live/'));
-
-                    return $vid;
-                }
-
-                // Handle /v/ URLs (e.g., https://www.youtube.com/v/{video_id})
-                if (strpos($parsedUrl['path'], '/v/') === 0) {
-                    $path = static::_parse_url_path($youtube_url);
-                    $vid = substr($path, strlen('/v/'));
-
-                    return $vid;
-                }
-
-                // Handle standard YouTube video URLs (e.g., https://www.youtube.com/watch?v={video_id})
-                $params = static::_parse_url_query($youtube_url);
-                if (isset($params['v'])) {
-                    return $params['v'];
-                }
-
-                // Handle short YouTube URLs (e.g., https://youtu.be/{video_id})
-            } else if (strpos($parsedUrl['host'], 'youtu.be') !== false) {
+        if (strpos($youtube_url, 'youtube.com')) {
+            if (strpos($youtube_url, 'embed')) {
                 $path = static::_parse_url_path($youtube_url);
-                $vid = substr($path, 1); // Remove the leading '/'
-
+                $vid = substr($path, 7);
                 return $vid;
+            } else {
+                $params = static::_parse_url_query($youtube_url);
+                return $params['v'];
             }
+        } else if (strpos($youtube_url, 'youtu.be')) {
+            $path = static::_parse_url_path($youtube_url);
+            $vid = substr($path, 1);
+            return $vid;
+        } else {
+            throw new \Exception('The supplied URL does not look like a Youtube URL');
         }
-
-        // If no valid video ID is found, throw an exception
-        throw new \Exception('The supplied URL does not look like a valid YouTube URL');
     }
 
     /**
@@ -769,7 +738,7 @@ class Youtube
 
             throw new \Exception($msg);
         } else {
-
+            
             if(isset($resObj->items)) {
                 $itemsArray = $resObj->items;
                 if (!is_array($itemsArray) || count($itemsArray) == 0) {
